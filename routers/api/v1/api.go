@@ -1512,6 +1512,7 @@ func Routes() *web.Router {
 				m.Group("/pulls", func() {
 					m.Combo("").Get(repo.ListPullRequests).
 						Post(reqToken(), mustNotBeArchived, bind(api.CreatePullRequestOption{}), repo.CreatePullRequest)
+					m.Post("/generate-description", reqToken(), bind(api.GeneratePullRequestDescriptionOption{}), repo.GeneratePullDescription)
 					m.Get("/pinned", repo.ListPinnedPullRequests)
 					m.Post("/comments/{id}/resolve", reqToken(), mustNotBeArchived, repo.ResolvePullReviewComment)
 					m.Post("/comments/{id}/unresolve", reqToken(), mustNotBeArchived, repo.UnresolvePullReviewComment)

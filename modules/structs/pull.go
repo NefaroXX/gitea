@@ -195,3 +195,17 @@ type ChangedFile struct {
 	// The raw URL to download the file
 	RawURL string `json:"raw_url,omitempty"`
 }
+
+// GeneratePullRequestDescriptionOption options for generating a pull request description
+type GeneratePullRequestDescriptionOption struct {
+	// The base branch for the pull request
+	Base string `json:"base" binding:"Required"`
+	// The head branch for the pull request
+	Head string `json:"head" binding:"Required"`
+}
+
+// GeneratePullRequestDescriptionResponse response for generating a pull request description
+type GeneratePullRequestDescriptionResponse struct {
+	// The generated pull request description
+	Description string `json:"description"`
+}
