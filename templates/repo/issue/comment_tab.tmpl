@@ -14,6 +14,13 @@
 	)}}
 </div>
 
+{{if .PageIsComparePull}}
+<div class="field">
+	<button type="button" class="ui button" id="ai-generate-description" data-base="{{$.BaseBranch}}" data-head="{{$.HeadBranch}}" data-repo-link="{{$.RepoLink}}" data-url="{{AppSubUrl}}/{{$.Repository.FullName}}/compare/generate-description">{{ctx.Locale.Tr "repo.pulls.generate_description"}}</button>
+	<span id="ai-generate-description-status" class="tw-ml-2 tw-text-sm tw-text-text-light"></span>
+</div>
+{{end}}
+
 {{if .IsAttachmentEnabled}}
 	<div class="field">
 		{{template "repo/upload" .}}
