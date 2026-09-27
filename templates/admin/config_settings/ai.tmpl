@@ -37,7 +37,7 @@
 		{{$cfg = .SystemConfig.AI.APIKey}}
 		<div class="field">
 			<label>{{ctx.Locale.Tr "admin.config.ai_api_key"}}</label>
-			<input name="{{$cfg.DynKey}}" type="password" value="" autocomplete="new-password"
+			<input name="{{$cfg.DynKey}}" value="" autocomplete="off" spellcheck="false"
 				placeholder="{{if $cfg.HasValue ctx}}{{ctx.Locale.Tr "admin.config.ai_api_key_set"}}{{else}}{{ctx.Locale.Tr "admin.config.ai_api_key_unset"}}{{end}}">
 			<span class="help">{{ctx.Locale.Tr "admin.config.ai_api_key_help"}}</span>
 		</div>
@@ -47,31 +47,31 @@
 		{{$cfg = .SystemConfig.AI.MaxDiff}}
 		<div class="field">
 			<label>{{ctx.Locale.Tr "admin.config.ai_max_diff"}}</label>
-			<input name="{{$cfg.DynKey}}" type="number" min="1024" value="{{$cfg.Value ctx}}" required>
+			<input name="{{$cfg.DynKey}}" inputmode="numeric" pattern="[0-9]*" value="{{$cfg.Value ctx}}" required>
 		</div>
 
 		{{$cfg = .SystemConfig.AI.MaxCommits}}
 		<div class="field">
 			<label>{{ctx.Locale.Tr "admin.config.ai_max_commits"}}</label>
-			<input name="{{$cfg.DynKey}}" type="number" min="1" value="{{$cfg.Value ctx}}" required>
+			<input name="{{$cfg.DynKey}}" inputmode="numeric" pattern="[0-9]*" value="{{$cfg.Value ctx}}" required>
 		</div>
 
 		{{$cfg = .SystemConfig.AI.MaxFiles}}
 		<div class="field">
 			<label>{{ctx.Locale.Tr "admin.config.ai_max_files"}}</label>
-			<input name="{{$cfg.DynKey}}" type="number" min="1" value="{{$cfg.Value ctx}}" required>
+			<input name="{{$cfg.DynKey}}" inputmode="numeric" pattern="[0-9]*" value="{{$cfg.Value ctx}}" required>
 		</div>
 
 		{{$cfg = .SystemConfig.AI.MaxPrompt}}
 		<div class="field">
 			<label>{{ctx.Locale.Tr "admin.config.ai_max_prompt"}}</label>
-			<input name="{{$cfg.DynKey}}" type="number" min="1024" value="{{$cfg.Value ctx}}" required>
+			<input name="{{$cfg.DynKey}}" inputmode="numeric" pattern="[0-9]*" value="{{$cfg.Value ctx}}" required>
 		</div>
 
 		{{$cfg = .SystemConfig.AI.Timeout}}
 		<div class="field">
 			<label>{{ctx.Locale.Tr "admin.config.ai_timeout"}}</label>
-			<input name="{{$cfg.DynKey}}" type="number" min="1" value="{{$cfg.Value ctx}}" required>
+			<input name="{{$cfg.DynKey}}" inputmode="numeric" pattern="[0-9]*" value="{{$cfg.Value ctx}}" required>
 		</div>
 
 		<div class="field">

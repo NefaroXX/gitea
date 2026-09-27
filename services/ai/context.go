@@ -22,8 +22,8 @@ import (
 // BuildInputFromCompare builds a DescriptionInput from compare information with limits.
 func BuildInputFromCompare(ctx context.Context, repo *repo_model.Repository, compareInfo *git_service.CompareInfo, gitRepo *git.Repository) (DescriptionInput, error) {
 	aiCfg := setting.Config().AI
-	maxCommits := aiCfg.MaxCommits.Value(ctx)
-	maxFiles := aiCfg.MaxFiles.Value(ctx)
+	maxCommits := ConfigInt(ctx, aiCfg.MaxCommits, 20)
+	maxFiles := ConfigInt(ctx, aiCfg.MaxFiles, 50)
 	input := DescriptionInput{
 		RepositoryName: repo.FullName(),
 		BaseBranch:     compareInfo.BaseRef.ShortName(),
@@ -59,7 +59,7 @@ func BuildInputFromCompare(ctx context.Context, repo *repo_model.Repository, com
 
 	// Diff patch with limit
 	if compareInfo.CompareBase != "" && compareInfo.HeadCommitID != "" {
-		diff, truncated := getDiffWithLimit(ctx, gitRepo, compareInfo.CompareBase, compareInfo.HeadCommitID, aiCfg.MaxDiff.Value(ctx))
+		diff, truncated := getDiffWithLimit(ctx, gitRepo, compareInfo.CompareBase, compareInfo.HeadCommitID, ConfigInt(ctx, aiCfg.MaxDiff, 50000))
 		input.Diff = diff
 		input.Truncated = truncated || truncatedCommits
 	}
@@ -69,7 +69,7 @@ func BuildInputFromCompare(ctx context.Context, repo *repo_model.Repository, com
 	input.PRTemplate = templateContent
 
 	// Ensure prompt limit
-	EnsurePromptWithinLimit(&input, aiCfg.MaxPrompt.Value(ctx))
+	EnsurePromptWithinLimit(&input, ConfigInt(ctx, aiCfg.MaxPrompt, 100000))
 
 	return input, nil
 }

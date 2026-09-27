@@ -10,14 +10,25 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"gitea.dev/modules/log"
 	"gitea.dev/modules/setting"
+	"gitea.dev/modules/setting/config"
 )
 
 const defaultRequestTimeout = 30 * time.Second
+
+// ConfigInt reads a numeric config option, falling back to def when unset or unparsable.
+func ConfigInt(ctx context.Context, opt *config.Option[string], def int) int {
+	v, err := strconv.Atoi(strings.TrimSpace(opt.Value(ctx)))
+	if err != nil || v <= 0 {
+		return def
+	}
+	return v
+}
 
 // OpenAIProvider is an OpenAI-compatible HTTP client.
 type OpenAIProvider struct {
@@ -40,7 +51,7 @@ func NewOpenAIProvider(ctx context.Context) (*OpenAIProvider, error) {
 	if baseURL == "" || model == "" {
 		return nil, ErrAIConfigMissing
 	}
-	timeout := time.Duration(cfg.Timeout.Value(ctx)) * time.Second
+	timeout := time.Duration(ConfigInt(ctx, cfg.Timeout, 30)) * time.Second
 	if timeout <= 0 {
 		timeout = defaultRequestTimeout
 	}
@@ -86,7 +97,7 @@ type openAIChatResponse struct {
 // Generate generates a description using OpenAI-compatible API.
 func (p *OpenAIProvider) Generate(ctx context.Context, input DescriptionInput) (string, error) {
 	// Ensure prompt limits
-	EnsurePromptWithinLimit(&input, setting.Config().AI.MaxPrompt.Value(ctx))
+	EnsurePromptWithinLimit(&input, ConfigInt(ctx, setting.Config().AI.MaxPrompt, 100000))
 
 	messages := BuildMessages(input)
 
