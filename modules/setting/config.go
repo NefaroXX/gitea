@@ -60,6 +60,7 @@ type ConfigStruct struct {
 	Picture    *PictureStruct
 	Repository *RepositoryStruct
 	Instance   *InstanceStruct
+	AI         *AIStruct
 }
 
 var (
@@ -82,6 +83,7 @@ func initDefaultConfig() {
 			WebBanner:       config.NewOption[WebBannerType]("instance.web_banner"),
 			MaintenanceMode: config.NewOption[MaintenanceModeType]("instance.maintenance_mode"),
 		},
+		AI: newAIStruct(),
 	}
 }
 

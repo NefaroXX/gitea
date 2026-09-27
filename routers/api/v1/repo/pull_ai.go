@@ -8,7 +8,6 @@ import (
 
 	"gitea.dev/models/unit"
 	"gitea.dev/modules/log"
-	"gitea.dev/modules/setting"
 	api "gitea.dev/modules/structs"
 	"gitea.dev/modules/web"
 	"gitea.dev/services/ai"
@@ -60,16 +59,6 @@ func GeneratePullDescription(ctx *context.APIContext) {
 		return
 	}
 
-	if !setting.AI.Enabled {
-		ctx.APIError(http.StatusServiceUnavailable, "AI is disabled")
-		return
-	}
-	if setting.AI.BaseURL == "" || setting.AI.Model == "" {
-		ctx.APIError(http.StatusInternalServerError, "AI configuration missing")
-		return
-	}
-	// APIKey may be empty for local providers (e.g., Ollama), still allow
-
 	form := web.GetForm[*api.GeneratePullRequestDescriptionOption](ctx)
 	if form == nil {
 		ctx.APIError(http.StatusBadRequest, "invalid request")
@@ -115,13 +104,17 @@ func GeneratePullDescription(ctx *context.APIContext) {
 		return
 	}
 
-	generator, err := ai.GetGenerator()
+	generator, err := ai.GetGenerator(ctx)
 	if err != nil {
 		if err == ai.ErrAIDisabled {
 			ctx.APIError(http.StatusServiceUnavailable, "AI is disabled")
 			return
 		}
 		log.Error("GetGenerator failed: %v", err)
+		if err == ai.ErrAIConfigMissing {
+			ctx.APIError(http.StatusServiceUnavailable, "AI configuration missing")
+			return
+		}
 		ctx.APIErrorInternal(err)
 		return
 	}

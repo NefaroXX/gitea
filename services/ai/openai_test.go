@@ -10,8 +10,6 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"gitea.dev/modules/setting"
 )
 
 func TestBuildPrompt(t *testing.T) {
@@ -62,14 +60,6 @@ func TestTruncateDiff(t *testing.T) {
 }
 
 func TestOpenAIProviderSuccess(t *testing.T) {
-	// Setup config
-	setting.AI.Enabled = true
-	setting.AI.BaseURL = "" // will be overwritten by test server URL
-	setting.AI.APIKey = "test-key"
-	setting.AI.Model = "test-model"
-	setting.AI.RequestTimeout = 5
-	setting.AI.MaxPromptBytes = 100000
-
 	var gotAuth, gotModel string
 	var gotBody map[string]any
 	captured := false
@@ -96,12 +86,12 @@ func TestOpenAIProviderSuccess(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Override BaseURL
-	setting.AI.BaseURL = server.URL
-
-	provider, err := NewOpenAIProvider()
-	if err != nil {
-		t.Fatalf("NewOpenAIProvider failed: %v", err)
+	provider := &OpenAIProvider{
+		BaseURL: server.URL,
+		APIKey:  "test-key",
+		Model:   "test-model",
+		Timeout: 5 * time.Second,
+		Client:  &http.Client{Timeout: 5 * time.Second},
 	}
 	input := DescriptionInput{
 		RepositoryName: "owner/repo",
@@ -135,12 +125,6 @@ func TestOpenAIProviderSuccess(t *testing.T) {
 }
 
 func TestOpenAIProviderErrors(t *testing.T) {
-	setting.AI.Enabled = true
-	setting.AI.APIKey = "key"
-	setting.AI.Model = "m"
-	setting.AI.RequestTimeout = 2
-	setting.AI.MaxPromptBytes = 100000
-
 	tests := []struct {
 		name      string
 		handler   http.HandlerFunc
@@ -192,10 +176,12 @@ func TestOpenAIProviderErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(tc.handler)
 			defer server.Close()
-			setting.AI.BaseURL = server.URL
-			provider, err := NewOpenAIProvider()
-			if err != nil {
-				t.Fatalf("NewOpenAIProvider: %v", err)
+			provider := &OpenAIProvider{
+				BaseURL: server.URL,
+				APIKey:  "key",
+				Model:   "m",
+				Timeout: 2 * time.Second,
+				Client:  &http.Client{Timeout: 2 * time.Second},
 			}
 			_, err = provider.Generate(context.Background(), DescriptionInput{RepositoryName: "a/b", BaseBranch: "main", HeadBranch: "feat", Diff: "d"})
 			if err == nil {
@@ -209,21 +195,18 @@ func TestOpenAIProviderErrors(t *testing.T) {
 }
 
 func TestOpenAIProviderTimeout(t *testing.T) {
-	setting.AI.Enabled = true
-	setting.AI.APIKey = "key"
-	setting.AI.Model = "m"
-	setting.AI.RequestTimeout = 1
-	setting.AI.MaxPromptBytes = 100000
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(2 * time.Second)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]string{"content": "hi"}}}})
 	}))
 	defer server.Close()
-	setting.AI.BaseURL = server.URL
-	provider, err := NewOpenAIProvider()
-	if err != nil {
-		t.Fatalf("NewOpenAIProvider: %v", err)
+	provider := &OpenAIProvider{
+		BaseURL: server.URL,
+		APIKey:  "key",
+		Model:   "m",
+		Timeout: time.Second,
+		Client:  &http.Client{Timeout: time.Second},
 	}
 	_, err = provider.Generate(context.Background(), DescriptionInput{RepositoryName: "a/b", BaseBranch: "main", HeadBranch: "feat"})
 	if err == nil || !contains(err.Error(), "timeout") && !contains(err.Error(), "unavailable") {
@@ -232,12 +215,12 @@ func TestOpenAIProviderTimeout(t *testing.T) {
 }
 
 func TestAIDisabled(t *testing.T) {
-	setting.AI.Enabled = false
-	_, err := NewOpenAIProvider()
+	// a disabled provider must never reach the network; NewOpenAIProvider reads the
+	// dynamic config which defaults to disabled
+	_, err := NewOpenAIProvider(t.Context())
 	if err != ErrAIDisabled {
 		t.Fatalf("expected ErrAIDisabled, got %v", err)
 	}
-	setting.AI.Enabled = true // restore for other tests
 }
 
 func TestEnsurePromptWithinLimit(t *testing.T) {

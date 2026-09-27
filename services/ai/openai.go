@@ -10,11 +10,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"gitea.dev/modules/log"
 	"gitea.dev/modules/setting"
 )
+
+const defaultRequestTimeout = 30 * time.Second
 
 // OpenAIProvider is an OpenAI-compatible HTTP client.
 type OpenAIProvider struct {
@@ -25,34 +28,34 @@ type OpenAIProvider struct {
 	Timeout time.Duration
 }
 
-// NewOpenAIProvider creates a provider from current setting.AI.
-func NewOpenAIProvider() (*OpenAIProvider, error) {
-	if !setting.AI.Enabled {
+// NewOpenAIProvider creates a provider from the current dynamic AI config. The values are read
+// per request so that admin config changes take effect without a restart.
+func NewOpenAIProvider(ctx context.Context) (*OpenAIProvider, error) {
+	cfg := setting.Config().AI
+	if !cfg.Enabled.Value(ctx) {
 		return nil, ErrAIDisabled
 	}
-	if setting.AI.BaseURL == "" || setting.AI.Model == "" {
+	baseURL := strings.TrimRight(strings.TrimSpace(cfg.BaseURL.Value(ctx)), "/")
+	model := strings.TrimSpace(cfg.Model.Value(ctx))
+	if baseURL == "" || model == "" {
 		return nil, ErrAIConfigMissing
 	}
-	if setting.AI.APIKey == "" {
-		// allow empty for local Ollama etc. but warn
-		log.Warn("AI API key is empty, proceeding for local provider")
-	}
-	timeout := time.Duration(setting.AI.RequestTimeout) * time.Second
+	timeout := time.Duration(cfg.Timeout.Value(ctx)) * time.Second
 	if timeout <= 0 {
-		timeout = 30 * time.Second
+		timeout = defaultRequestTimeout
 	}
 	return &OpenAIProvider{
-		BaseURL: setting.AI.BaseURL,
-		APIKey:  setting.AI.APIKey,
-		Model:   setting.AI.Model,
+		BaseURL: baseURL,
+		APIKey:  strings.TrimSpace(cfg.APIKey.Value(ctx)),
+		Model:   model,
 		Client:  &http.Client{Timeout: timeout},
 		Timeout: timeout,
 	}, nil
 }
 
 // GetGenerator returns a configured DescriptionGenerator.
-func GetGenerator() (DescriptionGenerator, error) {
-	return NewOpenAIProvider()
+func GetGenerator(ctx context.Context) (DescriptionGenerator, error) {
+	return NewOpenAIProvider(ctx)
 }
 
 type openAIChatRequest struct {
@@ -83,7 +86,7 @@ type openAIChatResponse struct {
 // Generate generates a description using OpenAI-compatible API.
 func (p *OpenAIProvider) Generate(ctx context.Context, input DescriptionInput) (string, error) {
 	// Ensure prompt limits
-	EnsurePromptWithinLimit(&input, setting.AI.MaxPromptBytes)
+	EnsurePromptWithinLimit(&input, setting.Config().AI.MaxPrompt.Value(ctx))
 
 	messages := BuildMessages(input)
 

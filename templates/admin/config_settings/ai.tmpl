@@ -1,0 +1,81 @@
+<h4 class="ui top attached header">
+	{{ctx.Locale.Tr "admin.config.ai_config"}}
+</h4>
+<div class="ui attached segment">
+	<form class="ui form system-config-form" method="post" action="{{AppSubUrl}}/-/admin/config">
+		<div class="field">
+			<div class="ui message">
+				<div class="header">{{ctx.Locale.Tr "admin.config.ai_config_desc"}}</div>
+				<p>{{ctx.Locale.Tr "admin.config.ai_config_privacy"}}</p>
+			</div>
+		</div>
+
+		{{$cfg := .SystemConfig.AI.Enabled}}
+		<div class="field">
+			<div class="ui toggle checkbox" data-tooltip-content="{{ctx.Locale.Tr "admin.config.ai_enabled"}}">
+				<input type="checkbox" data-config-dyn-key="{{$cfg.DynKey}}" data-config-value-type="flipped" {{if not ($cfg.Value ctx)}}checked{{end}}><label></label>
+				{{ctx.Locale.Tr "admin.config.ai_enabled"}}
+			</div>
+		</div>
+
+		<div class="divider"></div>
+
+		{{$cfg = .SystemConfig.AI.BaseURL}}
+		<div class="field">
+			<label>{{ctx.Locale.Tr "admin.config.ai_base_url"}}</label>
+			<input name="{{$cfg.DynKey}}" value="{{$cfg.Value ctx}}" placeholder="{{$cfg.DefaultValue}}" maxlength="255" dir="auto" required>
+			<span class="help">{{ctx.Locale.Tr "admin.config.ai_base_url_help"}}</span>
+		</div>
+
+		{{$cfg = .SystemConfig.AI.Model}}
+		<div class="field">
+			<label>{{ctx.Locale.Tr "admin.config.ai_model"}}</label>
+			<input name="{{$cfg.DynKey}}" value="{{$cfg.Value ctx}}" placeholder="{{$cfg.DefaultValue}}" maxlength="255" dir="auto" required>
+		</div>
+
+		{{/* the stored key is never rendered back, only whether one is set */}}
+		{{$cfg = .SystemConfig.AI.APIKey}}
+		<div class="field">
+			<label>{{ctx.Locale.Tr "admin.config.ai_api_key"}}</label>
+			<input name="{{$cfg.DynKey}}" type="password" value="" autocomplete="new-password"
+				placeholder="{{if $cfg.HasValue ctx}}{{ctx.Locale.Tr "admin.config.ai_api_key_set"}}{{else}}{{ctx.Locale.Tr "admin.config.ai_api_key_unset"}}{{end}}">
+			<span class="help">{{ctx.Locale.Tr "admin.config.ai_api_key_help"}}</span>
+		</div>
+
+		<div class="divider"></div>
+
+		{{$cfg = .SystemConfig.AI.MaxDiff}}
+		<div class="field">
+			<label>{{ctx.Locale.Tr "admin.config.ai_max_diff"}}</label>
+			<input name="{{$cfg.DynKey}}" type="number" min="1024" value="{{$cfg.Value ctx}}" required>
+		</div>
+
+		{{$cfg = .SystemConfig.AI.MaxCommits}}
+		<div class="field">
+			<label>{{ctx.Locale.Tr "admin.config.ai_max_commits"}}</label>
+			<input name="{{$cfg.DynKey}}" type="number" min="1" value="{{$cfg.Value ctx}}" required>
+		</div>
+
+		{{$cfg = .SystemConfig.AI.MaxFiles}}
+		<div class="field">
+			<label>{{ctx.Locale.Tr "admin.config.ai_max_files"}}</label>
+			<input name="{{$cfg.DynKey}}" type="number" min="1" value="{{$cfg.Value ctx}}" required>
+		</div>
+
+		{{$cfg = .SystemConfig.AI.MaxPrompt}}
+		<div class="field">
+			<label>{{ctx.Locale.Tr "admin.config.ai_max_prompt"}}</label>
+			<input name="{{$cfg.DynKey}}" type="number" min="1024" value="{{$cfg.Value ctx}}" required>
+		</div>
+
+		{{$cfg = .SystemConfig.AI.Timeout}}
+		<div class="field">
+			<label>{{ctx.Locale.Tr "admin.config.ai_timeout"}}</label>
+			<input name="{{$cfg.DynKey}}" type="number" min="1" value="{{$cfg.Value ctx}}" required>
+		</div>
+
+		<div class="field">
+			<button class="ui primary button">{{ctx.Locale.Tr "save"}}</button>
+		</div>
+	</form>
+</div>

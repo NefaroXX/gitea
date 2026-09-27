@@ -10,7 +10,6 @@ import (
 
 	"gitea.dev/models/unit"
 	"gitea.dev/modules/log"
-	"gitea.dev/modules/setting"
 	"gitea.dev/services/ai"
 	"gitea.dev/services/context"
 )
@@ -22,15 +21,6 @@ func GenerateDescription(ctx *context.Context) {
 		ctx.JSONError(ctx.Tr("repo.pulls.no_permission"))
 		return
 	}
-	if !setting.AI.Enabled {
-		ctx.JSON(http.StatusServiceUnavailable, map[string]string{"message": "AI is disabled"})
-		return
-	}
-	if setting.AI.BaseURL == "" || setting.AI.Model == "" {
-		ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "AI configuration missing"})
-		return
-	}
-
 	// Try JSON body first, then form
 	var base, head string
 	if ctx.Req.Method == http.MethodPost {
@@ -99,10 +89,14 @@ func GenerateDescription(ctx *context.Context) {
 		return
 	}
 
-	generator, err := ai.GetGenerator()
+	generator, err := ai.GetGenerator(ctx)
 	if err != nil {
 		log.Error("GetGenerator failed: %v", err)
-		ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "AI provider not configured"})
+		msg := "AI provider not configured"
+		if err == ai.ErrAIDisabled {
+			msg = "AI is disabled"
+		}
+		ctx.JSON(http.StatusServiceUnavailable, map[string]string{"message": msg})
 		return
 	}
 

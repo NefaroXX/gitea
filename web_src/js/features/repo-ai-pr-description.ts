@@ -5,23 +5,16 @@ import {triggerEditorContentChanged} from './comp/EditorMarkdown.ts';
 
 type Editor = ComboMarkdownEditor;
 
-function getEditorContainer(): HTMLElement | null {
-  return document.querySelector<HTMLElement>('.combo-markdown-editor');
-}
-
-// The instance is attached to its container by the constructor, but init() is async and
-// `textarea` is only assigned by setupTextarea(). value() dereferences that field, so it
-// throws until init resolves.
 function getEditor(): Editor | null {
-  const container = getEditorContainer();
+  const container = document.querySelector<HTMLElement>('.combo-markdown-editor');
   if (!container) return null;
   const editor = getComboMarkdownEditor(container);
+  // the instance is attached by the constructor, but `textarea` only exists once the async
+  // init() has run, and value() dereferences it
   if (!editor?.textarea) return null;
   return editor as Editor;
 }
 
-// The editor is initialised by a separate async init pass, so it can still be settling when
-// the button is wired up. Give it a moment instead of failing the interaction.
 async function waitForEditor(timeoutMs = 3000): Promise<Editor | null> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -61,8 +54,15 @@ function setButtonLabel(hasContent: boolean) {
   btn.textContent = hasContent ? getLabels().regenerate : getLabels().generate;
 }
 
-function isRegenerate(editor: Editor): boolean {
-  return editor.value().trim() !== '';
+// The compare page pre-fills the editor with the repository's PR template, so its starting
+// content is not something the user or we wrote. Only a change away from that baseline counts
+// as content worth regenerating over, otherwise the button reads as if it already ran.
+let editorBaseline: string | null = null;
+
+function hasContent(editor: Editor): boolean {
+  if (!editor.textarea) return false;
+  if (editorBaseline === null) return editor.value().trim() !== '';
+  return editor.value() !== editorBaseline;
 }
 
 async function handleGenerateClick(e: Event) {
@@ -77,7 +77,7 @@ async function handleGenerateClick(e: Event) {
   }
 
   const labels = getLabels();
-  if (isRegenerate(editor) && !window.confirm(labels.overwrite)) return;
+  if (hasContent(editor) && !window.confirm(labels.overwrite)) return;
 
   const base = btn.dataset.base;
   const head = btn.dataset.head;
@@ -88,7 +88,7 @@ async function handleGenerateClick(e: Event) {
   }
 
   const statusEl = document.getElementById('ai-generate-description-status');
-  const restoreLabel = isRegenerate(editor) ? labels.regenerate : labels.generate;
+  const restoreLabel = hasContent(editor) ? labels.regenerate : labels.generate;
 
   btn.disabled = true;
   btn.textContent = labels.generating;
@@ -103,7 +103,7 @@ async function handleGenerateClick(e: Event) {
       let message = `${resp.status} ${resp.statusText}`;
       try {
         const data = await resp.json();
-        // Backend only ever returns a generic message, never provider details.
+        // the backend only ever returns a generic message, never provider details
         message = data.message || data.errorMessage || message;
       } catch {}
       throw new Error(message);
@@ -113,6 +113,7 @@ async function handleGenerateClick(e: Event) {
     if (!description) throw new Error('empty response');
 
     editor.value(description);
+    editorBaseline = description;
     triggerEditorContentChanged(editor.textarea);
     btn.textContent = labels.regenerate;
     if (statusEl) statusEl.textContent = '';
@@ -129,12 +130,13 @@ export function initRepoAIPullDescription() {
   const btn = getButton();
   if (!btn) return;
 
-  // Only reflect existing content once the editor is actually usable.
   waitForEditor().then((editor) => {
     if (!editor) return;
-    setButtonLabel(isRegenerate(editor));
+    // remember the pre-filled PR template so it is not mistaken for generated content
+    editorBaseline = editor.value();
+    setButtonLabel(hasContent(editor));
     editor.container.addEventListener(ComboMarkdownEditor.EventEditorContentChanged, () => {
-      if (editor.textarea) setButtonLabel(isRegenerate(editor));
+      setButtonLabel(hasContent(editor));
     });
   });
 

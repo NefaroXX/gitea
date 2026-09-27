@@ -21,6 +21,9 @@ import (
 
 // BuildInputFromCompare builds a DescriptionInput from compare information with limits.
 func BuildInputFromCompare(ctx context.Context, repo *repo_model.Repository, compareInfo *git_service.CompareInfo, gitRepo *git.Repository) (DescriptionInput, error) {
+	aiCfg := setting.Config().AI
+	maxCommits := aiCfg.MaxCommits.Value(ctx)
+	maxFiles := aiCfg.MaxFiles.Value(ctx)
 	input := DescriptionInput{
 		RepositoryName: repo.FullName(),
 		BaseBranch:     compareInfo.BaseRef.ShortName(),
@@ -29,7 +32,7 @@ func BuildInputFromCompare(ctx context.Context, repo *repo_model.Repository, com
 
 	// Commits with limits
 	commits := compareInfo.Commits
-	limitedCommits, truncatedCommits := LimitCommits(commitInfoFromGitCommits(commits), setting.AI.MaxCommits)
+	limitedCommits, truncatedCommits := LimitCommits(commitInfoFromGitCommits(commits), maxCommits)
 	input.Commits = limitedCommits
 	if truncatedCommits {
 		// truncated commits already handled, diffStat will reflect full but we note truncation? Prompt truncation refers to diff.
@@ -46,17 +49,17 @@ func BuildInputFromCompare(ctx context.Context, repo *repo_model.Repository, com
 	}
 
 	// Changed files
-	changedFiles, err := getChangedFilesWithStatus(ctx, gitRepo, compareInfo.CompareBase, compareInfo.HeadCommitID)
+	changedFiles, err := getChangedFilesWithStatus(ctx, gitRepo, compareInfo.CompareBase, compareInfo.HeadCommitID, maxFiles)
 	if err != nil {
 		log.Error("getChangedFiles failed: %v", err)
 	} else {
-		limitedFiles, _ := LimitFiles(changedFiles, setting.AI.MaxFiles)
+		limitedFiles, _ := LimitFiles(changedFiles, maxFiles)
 		input.ChangedFiles = limitedFiles
 	}
 
 	// Diff patch with limit
 	if compareInfo.CompareBase != "" && compareInfo.HeadCommitID != "" {
-		diff, truncated := getDiffWithLimit(ctx, gitRepo, compareInfo.CompareBase, compareInfo.HeadCommitID, setting.AI.MaxDiffBytes)
+		diff, truncated := getDiffWithLimit(ctx, gitRepo, compareInfo.CompareBase, compareInfo.HeadCommitID, aiCfg.MaxDiff.Value(ctx))
 		input.Diff = diff
 		input.Truncated = truncated || truncatedCommits
 	}
@@ -66,7 +69,7 @@ func BuildInputFromCompare(ctx context.Context, repo *repo_model.Repository, com
 	input.PRTemplate = templateContent
 
 	// Ensure prompt limit
-	EnsurePromptWithinLimit(&input, setting.AI.MaxPromptBytes)
+	EnsurePromptWithinLimit(&input, aiCfg.MaxPrompt.Value(ctx))
 
 	return input, nil
 }
@@ -85,7 +88,7 @@ func commitInfoFromGitCommits(commits []*git.Commit) []CommitInfo {
 	return out
 }
 
-func getChangedFilesWithStatus(ctx context.Context, gitRepo *git.Repository, base, head string) ([]ChangedFile, error) {
+func getChangedFilesWithStatus(ctx context.Context, gitRepo *git.Repository, base, head string, maxFiles int) ([]ChangedFile, error) {
 	if base == "" || head == "" {
 		return nil, nil
 	}
@@ -132,7 +135,7 @@ func getChangedFilesWithStatus(ctx context.Context, gitRepo *git.Repository, bas
 			s = "copied"
 		}
 		files = append(files, ChangedFile{Path: path, Status: s})
-		if len(files) >= setting.AI.MaxFiles {
+		if len(files) >= maxFiles {
 			break
 		}
 	}
